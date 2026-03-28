@@ -15,9 +15,11 @@ uv run freshdesk-tui --filter open    # with initial status filter
 
 # Install dependencies
 uv sync
-```
+uv sync --group dev    # includes test dependencies
 
-There are no tests or linter configured yet.
+# Run tests
+uv run pytest tests/ -v
+```
 
 ## Architecture
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import re
+import sys
 import webbrowser
 from datetime import datetime
 
@@ -26,7 +28,7 @@ from textual.widgets import (
 )
 
 from .api import Attachment, Conversation, FreshdeskClient, Ticket
-from .config import Config
+from .config import Config, ConfigError
 
 # Status filter definitions: (label, type, value)
 # type="api_filter" uses /tickets?filter=value
@@ -268,7 +270,7 @@ class FreshdeskTUI(App):
         self.update_status(f"Loading [{filter_label}] tickets...")
         try:
             if filter_type == "search" and filter_value:
-                tickets = await self.client.search_by_filter(
+                tickets = await self.client.search_tickets(
                     filter_value, page=self.current_page
                 )
             else:
@@ -571,8 +573,6 @@ def html_to_markdown(html: str, inline_images: list[str] | None = None) -> str:
     if not html:
         return ""
     try:
-        import re
-
         # Extract inline images before markdownify strips them
         if inline_images is not None:
             for match in re.finditer(r'<img[^>]+src=["\']([^"\']+)["\']', html):
@@ -607,7 +607,11 @@ def main() -> None:
         help="Initial status filter: " + ", ".join(FILTER_NAMES),
     )
     args = parser.parse_args()
-    app = FreshdeskTUI(initial_filter=args.filter)
+    try:
+        app = FreshdeskTUI(initial_filter=args.filter)
+    except ConfigError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
     app.run()
 
 

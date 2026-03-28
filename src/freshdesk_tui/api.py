@@ -70,6 +70,25 @@ def _parse_attachments(data: list[dict]) -> list[Attachment]:
     ]
 
 
+def _parse_ticket(t: dict, *, include_attachments: bool = False) -> Ticket:
+    """Parse a ticket dict from the Freshdesk API into a Ticket dataclass."""
+    requester = t.get("requester", {}) or {}
+    requester_name = requester.get("name", "") or t.get("requester_id", "")
+    return Ticket(
+        id=t["id"],
+        subject=t.get("subject", "(no subject)"),
+        status=t.get("status", 0),
+        priority=t.get("priority", 0),
+        requester_name=str(requester_name),
+        created_at=t.get("created_at", ""),
+        updated_at=t.get("updated_at", ""),
+        description_text=t.get("description_text", ""),
+        description_html=t.get("description", ""),
+        tags=t.get("tags", []),
+        attachments=_parse_attachments(t.get("attachments") or []) if include_attachments else [],
+    )
+
+
 class FreshdeskClient:
     def __init__(self, domain: str, api_key: str) -> None:
         self.domain = domain
@@ -108,48 +127,14 @@ class FreshdeskClient:
 
         resp = await self.client.get("/tickets", params=params)
         resp.raise_for_status()
-        data = resp.json()
-        tickets = []
-        for t in data:
-            requester = t.get("requester", {}) or {}
-            requester_name = requester.get("name", "") or t.get("requester_id", "")
-            tickets.append(
-                Ticket(
-                    id=t["id"],
-                    subject=t.get("subject", "(no subject)"),
-                    status=t.get("status", 0),
-                    priority=t.get("priority", 0),
-                    requester_name=str(requester_name),
-                    created_at=t.get("created_at", ""),
-                    updated_at=t.get("updated_at", ""),
-                    description_text=t.get("description_text", ""),
-                    description_html=t.get("description", ""),
-                    tags=t.get("tags", []),
-                )
-            )
-        return tickets
+        return [_parse_ticket(t) for t in resp.json()]
 
     async def get_ticket(self, ticket_id: int) -> Ticket:
         resp = await self.client.get(
             f"/tickets/{ticket_id}", params={"include": "requester"}
         )
         resp.raise_for_status()
-        t = resp.json()
-        requester = t.get("requester", {}) or {}
-        requester_name = requester.get("name", "") or t.get("requester_id", "")
-        return Ticket(
-            id=t["id"],
-            subject=t.get("subject", "(no subject)"),
-            status=t.get("status", 0),
-            priority=t.get("priority", 0),
-            requester_name=str(requester_name),
-            created_at=t.get("created_at", ""),
-            updated_at=t.get("updated_at", ""),
-            description_text=t.get("description_text", ""),
-            description_html=t.get("description", ""),
-            tags=t.get("tags", []),
-            attachments=_parse_attachments(t.get("attachments") or []),
-        )
+        return _parse_ticket(resp.json(), include_attachments=True)
 
     async def get_conversations(self, ticket_id: int) -> list[Conversation]:
         resp = await self.client.get(f"/tickets/{ticket_id}/conversations")
@@ -168,60 +153,20 @@ class FreshdeskClient:
             for c in data
         ]
 
-    async def search_by_filter(
+    async def search_tickets(
         self, query: str, page: int = 1
     ) -> list[Ticket]:
-        """Search tickets using Freshdesk search API with a filter query.
+        """Search tickets using Freshdesk search API.
 
-        query: Freshdesk search query, e.g. "status:5" for closed tickets.
+        query: Freshdesk search query, e.g. "status:5" for closed tickets,
+               or free-text search terms.
         """
-        resp = await self.client.get(
-            "/search/tickets", params={"query": f'"{query}"', "page": page}
-        )
+        params: dict = {"query": f'"{query}"'}
+        if page > 1:
+            params["page"] = page
+        resp = await self.client.get("/search/tickets", params=params)
         resp.raise_for_status()
-        data = resp.json()
-        tickets = []
-        for t in data.get("results", []):
-            tickets.append(
-                Ticket(
-                    id=t["id"],
-                    subject=t.get("subject", "(no subject)"),
-                    status=t.get("status", 0),
-                    priority=t.get("priority", 0),
-                    requester_name=str(t.get("requester_id", "")),
-                    created_at=t.get("created_at", ""),
-                    updated_at=t.get("updated_at", ""),
-                    description_text=t.get("description_text", ""),
-                    description_html=t.get("description", ""),
-                    tags=t.get("tags", []),
-                )
-            )
-        return tickets
-
-    async def search_tickets(self, query: str) -> list[Ticket]:
-        """Search tickets using Freshdesk search API."""
-        resp = await self.client.get(
-            "/search/tickets", params={"query": f'"{query}"'}
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        tickets = []
-        for t in data.get("results", []):
-            tickets.append(
-                Ticket(
-                    id=t["id"],
-                    subject=t.get("subject", "(no subject)"),
-                    status=t.get("status", 0),
-                    priority=t.get("priority", 0),
-                    requester_name=str(t.get("requester_id", "")),
-                    created_at=t.get("created_at", ""),
-                    updated_at=t.get("updated_at", ""),
-                    description_text=t.get("description_text", ""),
-                    description_html=t.get("description", ""),
-                    tags=t.get("tags", []),
-                )
-            )
-        return tickets
+        return [_parse_ticket(t) for t in resp.json().get("results", [])]
 
     async def close(self) -> None:
         await self.client.aclose()
