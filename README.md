@@ -4,6 +4,8 @@ A terminal-based ticket browser for [Freshdesk](https://freshdesk.com/) support 
 
 Browse, search, filter, and view your Freshdesk support tickets without leaving the terminal.
 
+![Freshdesk TUI screenshot](docs/screenshot.png)
+
 ## Disclaimer
 
 I am **not** affiliated with Freshdesk or Freshworks in any way. I just like their services very much and I suggest their helpdesk solution to everyone.
@@ -25,12 +27,17 @@ I am **not** affiliated with Freshdesk or Freshworks in any way. I just like the
 
 ## Installation
 
+### Quick run (no install needed)
+
 ```bash
-# Clone the repository
+uvx --from git+https://github.com/mpasternak/freshdesk-tui.git freshdesk-tui
+```
+
+### From source
+
+```bash
 git clone https://github.com/mpasternak/freshdesk-tui.git
 cd freshdesk-tui
-
-# Install with uv
 uv sync
 ```
 
@@ -70,15 +77,19 @@ Environment variables take precedence over the config file.
 ## Usage
 
 ```bash
+# If installed from source
 uv run freshdesk-tui
+
+# Or run directly without installing
+uvx --from git+https://github.com/mpasternak/freshdesk-tui.git freshdesk-tui
 ```
 
 Start with a specific status filter:
 
 ```bash
-uv run freshdesk-tui --filter open
-uv run freshdesk-tui --filter closed
-uv run freshdesk-tui --filter all
+freshdesk-tui --filter open
+freshdesk-tui --filter closed
+freshdesk-tui --filter all
 ```
 
 ## Keyboard Shortcuts
