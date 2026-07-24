@@ -29,3 +29,6 @@ packages = ["src/freshdesk_tui"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[project.urls]
+Funding = "https://buymeacoffee.com/mpasternak"
